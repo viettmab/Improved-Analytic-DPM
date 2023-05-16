@@ -1,5 +1,5 @@
 
-__all__ = ["train", "train_ddpm_dsm"]
+__all__ = ["train", "train_ddpm_dsm", "train_ddpm_dsm_2steps"]
 
 
 import core.criterions as criterions
@@ -46,7 +46,24 @@ train_ddpm_dsm = dict_utils.merge_dict(train, {
         "kwargs": {
             "betas": "$(betas)",
             "rescale_timesteps": "$(rescale_timesteps)",
+            "two_steps": False,
         }
     },
     "evaluator": ddpm_naive_evaluator_train
 })
+
+train_ddpm_dsm_2steps = dict_utils.merge_dict(train, {
+    "models": {
+        "eps_model": unet_model,
+    },
+    "criterion": {
+        "class": criterions.DDPMDSM,
+        "kwargs": {
+            "betas": "$(betas)",
+            "rescale_timesteps": "$(rescale_timesteps)",
+            "two_steps": True,
+        }
+    },
+    "evaluator": ddpm_naive_evaluator_train
+})
+

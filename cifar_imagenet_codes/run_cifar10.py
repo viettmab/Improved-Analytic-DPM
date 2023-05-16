@@ -1,5 +1,5 @@
 from interface.runner import run_train_profile, run_evaluate_profile
-from profiles.ddpm.cifar10 import train_ddpm_dsm
+from profiles.ddpm.cifar10 import train_ddpm_dsm, train_ddpm_dsm_2steps
 from profiles.ddpm.cifar10.naive_evaluate import sample2dir_eps, sample2dir_ms_eps, sample2dir_ddim, \
     nll_eps, nll_ms_eps, save_ms_eps, save_nll_terms, sample2dir_ddim_ms_eps
 from interface.utils.exp_templates import run_on_different_settings, sample_ckpts, sample_one_ckpt, nll_one_ckpt, \
@@ -9,14 +9,23 @@ import numpy as np
 from interface.utils.dict_utils import merge_dict
 _prefix = "betas"
 batch_size_per_card = 500
-_n_devices = 8
+_n_devices = 2
 
 
-def _run_on_different_setting_train(names, settings, prefix, n_devices=1, common_setting=None, devices=None, time=None):
-    run_on_different_settings(run_fn=run_train_profile, profile=train_ddpm_dsm, path="workspace/runner/cifar10/ddpm_dsm",
-                              prefix=prefix, names=names, settings=settings,
-                              n_devices=n_devices, common_setting=common_setting,
-                              devices=devices, time=time, time_strategy="now")
+def _run_on_different_setting_train(names, settings, prefix, n_devices=1, common_setting=None, devices=None, time=None, two_steps=False):
+    if two_steps:
+        print("------Training 2 steps------")
+        run_on_different_settings(run_fn=run_train_profile, profile=train_ddpm_dsm_2steps, path="workspace/runner/cifar10/ddpm_dsm_2steps",
+                                prefix=prefix, names=names, settings=settings,
+                                n_devices=n_devices, common_setting=common_setting,
+                                devices=devices, time=time, time_strategy="now")
+    else:
+        print("------Training 1 step------")
+        run_on_different_settings(run_fn=run_train_profile, profile=train_ddpm_dsm, path="workspace/runner/cifar10/ddpm_dsm",
+                                prefix=prefix, names=names, settings=settings,
+                                n_devices=n_devices, common_setting=common_setting,
+                                devices=devices, time=time, time_strategy="now")
+        
 
 
 def _sample_ckpts(prefix, names, settings, ckpts, dirname, n_devices=1, common_setting=None, devices=None, time=None):
@@ -76,15 +85,19 @@ def _save_nll_terms_one_ckpt(prefix, names, best_ckpts, settings, save_nll_terms
 
 
 if __name__ == "__main__":
-    phase = "sample_analytic_ddim"
+    phase = "train2steps"
+    T = 1000
     _settings = {}
-    for beta_schedule, num_diffusion in [("linear", 1000), ("cosine", 1000)]:
+    for beta_schedule, num_diffusion in [("linear", T), ("exponential", T), ("cosine", T)]:
         _key = "beta_schedule_%s_num_diffusion_%d" % (beta_schedule, num_diffusion)
         _settings[_key] = {
             "betas": np.append(0., beta_schedules.get_named_beta_schedule(beta_schedule, num_diffusion))
         }
     if phase == "train":  # you can also use the pretrained model provided in README
-        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=2)
+        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=2, two_steps=False)
+        
+    elif phase == "train2steps":
+        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=2, two_steps=True)
 
     elif phase == "selection":  # select a model according to FID
         tuned = {"n_samples": 1000, "small_sigma": False, "sample_steps": None}

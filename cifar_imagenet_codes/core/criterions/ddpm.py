@@ -44,12 +44,34 @@ def _sample(x_0, cum_alphas, cum_betas):
     x_n = func.stp(cum_alphas[n] ** 0.5, x_0) + func.stp(cum_betas[n] ** 0.5, eps)
     return N, n, eps, x_n
 
+def _sample_t(x_0, cum_alphas, cum_betas, t):
+    eps = torch.randn_like(x_0)
+    x_t = func.stp(cum_alphas[t] ** 0.5, x_0) + func.stp(cum_betas[t] ** 0.5, eps)
+    return eps, x_t
+
 
 def _ddpm_dsm(x_0, eps_model, cum_alphas, cum_betas, rescale_timesteps):
     N, n, eps, x_n = _sample(x_0, cum_alphas, cum_betas)
     eps_pred = eps_model(x_n, _rescale_timesteps(torch.from_numpy(n).float().to(x_0.device), N, rescale_timesteps))
     return func.sos(eps - eps_pred)
 
+def _ddpm_dsm_2steps(x_0, eps_model, cum_alphas, cum_betas, rescale_timesteps):
+    T = len(cum_alphas) - 1
+    t = np.random.choice(list(range(1, T + 1)), (len(x_0),))
+    eps, x_t = _sample_t(x_0, cum_alphas, cum_betas, t)
+    eps_pred = eps_model(x_t, _rescale_timesteps(torch.from_numpy(t).float().to(x_0.device), T, rescale_timesteps))
+    x_0_pred = func.stp(cum_alphas[t] ** -0.5,  x_t) - func.stp((1. / cum_alphas[t] - 1.) ** 0.5, eps_pred)
+    x_0_pred = x_0_pred.clamp(-1., 1.)
+    mse = func.sos(eps - eps_pred)
+    #First residual
+    eps_first, x_t_1_first = _sample_t(x_0, cum_alphas, cum_betas, t-1)
+    eps_pred_first = eps_model(x_t_1_first, _rescale_timesteps(torch.from_numpy(t-1).float().to(x_0.device), T, rescale_timesteps))
+    mse += func.sos(eps_first - eps_pred_first)
+    #Second residual
+    eps_second, x_t_1_second = _sample_t(x_0_pred, cum_alphas, cum_betas, t-1)
+    eps_pred_second = eps_model(x_t_1_second, _rescale_timesteps(torch.from_numpy(t-1).float().to(x_0.device), T, rescale_timesteps))
+    mse += func.sos(eps_second - eps_pred_second)
+    return mse
 
 def _ddpm_dsm_zero(x_0, d_model, cum_alphas, cum_betas, rescale_timesteps):
     N, n, eps, x_n = _sample(x_0, cum_alphas, cum_betas)
@@ -80,6 +102,7 @@ class DDPMDSM(NaiveCriterion):
     def __init__(self,
                  betas,
                  rescale_timesteps,  # todo: remove this argument
+                 two_steps,
                  models: managers.ModelsManager,
                  optimizers: managers.OptimizersManager,
                  lr_schedulers: managers.LRSchedulersManager,
@@ -88,6 +111,7 @@ class DDPMDSM(NaiveCriterion):
         """
         assert isinstance(betas, np.ndarray) and betas[0] == 0
         super().__init__(models, optimizers, lr_schedulers)
+        self.two_steps = two_steps
         self.eps_model = nn.DataParallel(models.eps_model)  # predict noise
         self.betas = betas
         self.alphas, self.cum_alphas, self.cum_betas = _make_coeff(self.betas)
@@ -95,4 +119,7 @@ class DDPMDSM(NaiveCriterion):
         logging.info("DDPMDSM with rescale_timesteps={}".format(self.rescale_timesteps))
 
     def objective(self, v, **kwargs):
-        return _ddpm_dsm(v, self.eps_model, self.cum_alphas, self.cum_betas, self.rescale_timesteps)
+        if self.two_steps:
+            return _ddpm_dsm_2steps(v, self.eps_model, self.cum_alphas, self.cum_betas, self.rescale_timesteps)
+        else:
+            return _ddpm_dsm(v, self.eps_model, self.cum_alphas, self.cum_betas, self.rescale_timesteps)
