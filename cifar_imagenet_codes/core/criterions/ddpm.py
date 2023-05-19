@@ -66,11 +66,10 @@ def _ddpm_dsm_2steps(x_0, eps_model, cum_alphas, cum_betas, rescale_timesteps):
     #First residual
     eps_first, x_t_1_first = _sample_t(x_0, cum_alphas, cum_betas, t-1)
     eps_pred_first = eps_model(x_t_1_first, _rescale_timesteps(torch.from_numpy(t-1).float().to(x_0.device), T, rescale_timesteps))
-    mse += func.sos(eps_first - eps_pred_first)
     #Second residual
     eps_second, x_t_1_second = _sample_t(x_0_pred, cum_alphas, cum_betas, t-1)
     eps_pred_second = eps_model(x_t_1_second, _rescale_timesteps(torch.from_numpy(t-1).float().to(x_0.device), T, rescale_timesteps))
-    mse += func.sos(eps_second - eps_pred_second)
+    mse += (func.sos(eps_first - eps_pred_first) + func.sos(eps_second - eps_pred_second)) / 2
     return mse
 
 def _ddpm_dsm_zero(x_0, d_model, cum_alphas, cum_betas, rescale_timesteps):
