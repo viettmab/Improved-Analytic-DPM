@@ -5,7 +5,7 @@ __all__ = ["train", "train_ddpm_dsm", "train_ddpm_dsm_2steps"]
 import core.criterions as criterions
 from interface.utils import dict_utils
 import profiles.common as common
-from .base import unet_model, dataset, default_betas, ddpm_naive_evaluator_train
+from .base import unet_model, dataset, default_betas, ddpm_naive_evaluator_train, res_model
 import torch.optim as optim
 
 
@@ -18,7 +18,7 @@ train = {
     "training": {
         "n_ckpts": 50,
         "n_its": 500000,
-        "batch_size": 128,
+        "batch_size": 32,
     },
     "ema": {
         "rate": 0.9999
@@ -55,6 +55,7 @@ train_ddpm_dsm = dict_utils.merge_dict(train, {
 train_ddpm_dsm_2steps = dict_utils.merge_dict(train, {
     "models": {
         "eps_model": unet_model,
+        "res_model": res_model,
     },
     "criterion": {
         "class": criterions.DDPMDSM,

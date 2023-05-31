@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import logging
+import PIL
 import math
 from core.inference.utils import _choice_steps, _x_0_pred, _report_statistics
 
@@ -34,6 +35,11 @@ def reverse_ddpm_naive(x_init, betas, small_sigma, clip_denoise, rescale_timeste
         statistics['cum_alpha_s'] = cum_alpha_s
 
         x_0_pred, eps_pred = _x_0_pred(x, r, cum_alphas, rescale_timesteps, eps_model=eps_model, d_model=d_model, shift1=shift1)
+        # x_0_test = x_0_pred.clone().detach().cpu()
+        # x_0_test = ((x_0_test+1)*127.5).clamp(0, 255).to(torch.uint8)
+        # x_0_test = x_0_test.permute(0, 2, 3, 1)
+        # img = PIL.Image.fromarray(x_0_test[0].numpy())
+        # img.save(f"test{s}.png")
         if clip_denoise:
             x_0_pred = x_0_pred.clamp(-1., 1.)
         coeff1 = skip_beta * cum_alpha_s ** 0.5 / cum_beta_r

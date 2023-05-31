@@ -8,8 +8,8 @@ import profiles.ddpm.beta_schedules as beta_schedules
 import numpy as np
 from interface.utils.dict_utils import merge_dict
 _prefix = "betas"
-batch_size_per_card = 500
-_n_devices = 2
+batch_size_per_card = 100
+_n_devices = 1
 
 
 def _run_on_different_setting_train(names, settings, prefix, n_devices=1, common_setting=None, devices=None, time=None, two_steps=False):
@@ -85,19 +85,19 @@ def _save_nll_terms_one_ckpt(prefix, names, best_ckpts, settings, save_nll_terms
 
 
 if __name__ == "__main__":
-    phase = "train2steps"
-    T = 1000
+    phase = "sample_ddpm"
+    T = 50
     _settings = {}
-    for beta_schedule, num_diffusion in [("linear", T), ("exponential", T), ("cosine", T)]:
+    for beta_schedule, num_diffusion in [("exponential", T)]:
         _key = "beta_schedule_%s_num_diffusion_%d" % (beta_schedule, num_diffusion)
         _settings[_key] = {
             "betas": np.append(0., beta_schedules.get_named_beta_schedule(beta_schedule, num_diffusion))
         }
     if phase == "train":  # you can also use the pretrained model provided in README
-        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=2, two_steps=False)
+        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=1, two_steps=False)
         
     elif phase == "train2steps":
-        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=2, two_steps=True)
+        _run_on_different_setting_train(list(_settings.keys()), list(_settings.values()), prefix=_prefix, n_devices=1, two_steps=True)
 
     elif phase == "selection":  # select a model according to FID
         tuned = {"n_samples": 1000, "small_sigma": False, "sample_steps": None}
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         for n_samples in [None]:
             _save_ms_eps_settings.append({"n_samples": n_samples})
         names_best_ckpts = {
-            "beta_schedule_linear_num_diffusion_1000": "400000.ckpt.pth",
+            "beta_schedule_linear_num_diffusion_1000": "test300000.pth",
             "beta_schedule_cosine_num_diffusion_1000": "160000.ckpt.pth",
         }
         _save_ms_eps_one_ckpt(prefix=_prefix, names=list(_settings.keys()),
@@ -198,12 +198,14 @@ if __name__ == "__main__":
 
     elif phase == "sample_ddpm":
         _sample_settings = []
-        for sample_steps in [10, 25, 50, 100, 200, 400, 1000]:
+        # for sample_steps in [50, 100, 200, 400, 1000]:
+        for sample_steps in [50]:
             _sample_settings.append({"sample_steps": sample_steps, "n_samples": 50000, "small_sigma": True, "seed": 1234})
-            _sample_settings.append({"sample_steps": sample_steps, "n_samples": 50000, "small_sigma": False, "clip_sigma_idx": 1, "clip_pixel": 1, "seed": 1234})
+            # _sample_settings.append({"sample_steps": sample_steps, "n_samples": 50000, "small_sigma": False, "clip_sigma_idx": 1, "clip_pixel": 1, "seed": 1234})
         names_best_ckpts = {
-            "beta_schedule_linear_num_diffusion_1000": "400000.ckpt.pth",
-            "beta_schedule_cosine_num_diffusion_1000": "160000.ckpt.pth",
+            "beta_schedule_linear_num_diffusion_50": "500000.ckpt.pth",
+            "beta_schedule_exponential_num_diffusion_50": "200000.ckpt.pth",
+            "beta_schedule_cosine_num_diffusion_50": "400000.ckpt.pth",
         }
         _sample_one_ckpt(prefix=_prefix, names=list(_settings.keys()),
                          best_ckpts=[names_best_ckpts[name] for name in list(_settings.keys())],
