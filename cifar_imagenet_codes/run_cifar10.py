@@ -8,7 +8,7 @@ import profiles.ddpm.beta_schedules as beta_schedules
 import numpy as np
 from interface.utils.dict_utils import merge_dict
 _prefix = "betas"
-batch_size_per_card = 100
+batch_size_per_card = 500
 _n_devices = 1
 
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     phase = "train2steps"
     T = 50
     _settings = {}
-    for beta_schedule, num_diffusion in [("exponential", T)]:
+    for beta_schedule, num_diffusion in [("exponential", T), ("cosine", T), ("linear", T)]:
         _key = "beta_schedule_%s_num_diffusion_%d" % (beta_schedule, num_diffusion)
         _settings[_key] = {
             "betas": np.append(0., beta_schedules.get_named_beta_schedule(beta_schedule, num_diffusion))

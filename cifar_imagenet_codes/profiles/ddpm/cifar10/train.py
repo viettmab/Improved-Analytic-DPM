@@ -16,9 +16,9 @@ train = {
     "ckpt_root": "os.path.join($(workspace_root), 'train/ckpts/')",
     "backup_root": "os.path.join($(workspace_root), 'train/reproducibility/')",
     "training": {
-        "n_ckpts": 50,
-        "n_its": 500000,
-        "batch_size": 32,
+        "n_ckpts": 20,
+        "n_its": 400000,
+        "batch_size": 120,
     },
     "ema": {
         "rate": 0.9999
