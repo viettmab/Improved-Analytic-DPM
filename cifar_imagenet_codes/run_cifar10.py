@@ -85,7 +85,7 @@ def _save_nll_terms_one_ckpt(prefix, names, best_ckpts, settings, save_nll_terms
 
 
 if __name__ == "__main__":
-    phase = "sample_ddpm"
+    phase = "train2steps"
     T = 50
     _settings = {}
     for beta_schedule, num_diffusion in [("exponential", T)]:
