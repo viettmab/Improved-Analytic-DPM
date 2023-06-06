@@ -109,7 +109,7 @@ def wait_schedule(tasks: List[Task], devices: List[int]):
         elif state == 'finished':
             print("\033[1m a task with {} devices finished".format(len(task.devices)))
             devices_pool.flow_in(task.devices)
-            task.process.close()
+            # task.process.close()
             tasks.pop(idx)
             idx -= 1
         idx = linked_list_next(idx, tasks)

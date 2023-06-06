@@ -59,21 +59,20 @@ def _ddpm_dsm_2steps(x_0, eps_model, res_model, cum_alphas, cum_betas, alphas, r
     T = len(cum_alphas) - 1
     t = np.random.choice(list(range(1, T + 1)), (len(x_0),))
     recip_noise_coef =  np.sqrt(1.0 - cum_alphas) * np.sqrt(alphas) / (1-alphas)
-    eps, x_t = _sample_t(x_0, cum_alphas, cum_betas, t)
-    mean_prediction, x_0_pred = p_mean_variance(x_t, eps_model, res_model, None, t, T, cum_alphas, alphas, rescale_timesteps)
+    _, x_t = _sample_t(x_0, cum_alphas, cum_betas, t)
+    mean_prediction, x_0_pred, _, log_variance_prediction = p_mean_variance(x_t, eps_model, res_model, None, t, T, cum_alphas, alphas, rescale_timesteps)
     true_mean = q_posterior_mean_variance(x_0, x_t, t, cum_alphas, alphas)
-    
     mse = func.mos(func.stp(recip_noise_coef[t], (true_mean-mean_prediction)))
 
     #First residual
-    eps_first, x_t_1_first = _sample_t(x_0, cum_alphas, cum_betas, t-1)
-    mean_prediction_1, _ = p_mean_variance(x_t_1_first, eps_model, res_model, x_0_pred, t-1, T, cum_alphas, alphas, rescale_timesteps)
+    _, x_t_1_first = _sample_t(x_0, cum_alphas, cum_betas, t-1)
+    mean_prediction_1, _, _ ,_ = p_mean_variance(x_t_1_first, eps_model, res_model, x_0_pred, t-1, T, cum_alphas, alphas, rescale_timesteps)
     true_mean_1 = q_posterior_mean_variance(x_0, x_t_1_first, t-1, cum_alphas, alphas)
     mse_first = func.mos(func.stp(recip_noise_coef[t-1], (true_mean_1-mean_prediction_1)))
 
     #Second residual
-    eps_second, x_t_1_second = _sample_t(x_0_pred, cum_alphas, cum_betas, t-1)
-    mean_prediction_2, _ = p_mean_variance(x_t_1_second, eps_model, res_model, x_0_pred, t-1, T, cum_alphas, alphas, rescale_timesteps)
+    x_t_1_second = mean_prediction + func.stp(np.exp(0.5 * log_variance_prediction)[t], torch.randn_like(x_0))
+    mean_prediction_2, _, _, _ = p_mean_variance(x_t_1_second, eps_model, res_model, x_0_pred, t-1, T, cum_alphas, alphas, rescale_timesteps)
     true_mean_2 = q_posterior_mean_variance(x_0, x_t_1_second, t-1, cum_alphas, alphas)
     mse_second = func.mos(func.stp(recip_noise_coef[t-1], (true_mean_2-mean_prediction_2)))
     mse += (mse_first+mse_second)/2
@@ -103,9 +102,16 @@ def p_mean_variance(x_t, eps_model, res_model, residual_x_start, t, T, cum_alpha
             residual_val = residual_val_raw.expand(x_0_pred.shape)
             x_0_pred = (1.0 - residual_val) * x_0_pred + residual_val * residual_x_start
     
+    cum_alphas_prev = np.append(1.0, cum_alphas[:-1])
+    posterior_variance = (
+            (1. - alphas) * (1. - cum_alphas_prev) / (1. - cum_alphas)
+        )
+    posterior_log_variance_clipped = np.log(
+            np.append(posterior_variance[1], posterior_variance[1:])
+        )
     posterior_mean = q_posterior_mean_variance(x_0_pred, x_t, t, cum_alphas, alphas)
 
-    return posterior_mean, x_0_pred
+    return posterior_mean, x_0_pred, posterior_variance, posterior_log_variance_clipped
 
 def _ddpm_dsm_zero(x_0, d_model, cum_alphas, cum_betas, rescale_timesteps):
     N, n, eps, x_n = _sample(x_0, cum_alphas, cum_betas)
