@@ -153,7 +153,8 @@ class DDPMDSM(NaiveCriterion):
         super().__init__(models, optimizers, lr_schedulers)
         self.two_steps = two_steps
         self.eps_model = nn.DataParallel(models.eps_model)  # predict noise
-        self.res_model = nn.DataParallel(models.res_model)
+        if self.two_steps:
+            self.res_model = nn.DataParallel(models.res_model)
         self.betas = betas
         self.alphas, self.cum_alphas, self.cum_betas = _make_coeff(self.betas)
         self.alphas, self.cum_alphas, self.cum_betas = self.alphas[1:], self.cum_alphas[1:], self.cum_betas[1:]
