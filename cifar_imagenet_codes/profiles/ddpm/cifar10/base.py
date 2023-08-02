@@ -29,6 +29,13 @@ unet_model = {
     }
 }
 
+res_model = {
+    "class": modules.ResidualNet,
+    "kwargs": {
+        "image_size": 32,
+        "time_embed_dim": 128,
+    }
+}
 
 unet_model_double = dict_utils.merge_dict(unet_model, {
     "kwargs": {

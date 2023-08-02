@@ -194,7 +194,7 @@ class Diffusion(object):
 
         ckpt = get_ckpt_path(name)
         print("Loading checkpoint {}".format(ckpt))
-        diffusion.model.load_state_dict(torch.load(ckpt, map_location=diffusion.device))
+        diffusion.model.load_state_dict(torch.load(ckpt, map_location=diffusion.device)[-1])
         diffusion.model.to(diffusion.device)
         diffusion.model.eval()
         print("Moved model to {}".format(diffusion.device))
